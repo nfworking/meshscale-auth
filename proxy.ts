@@ -24,4 +24,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: ["/", "/sign-in", "/sign-up", "/select-org", "/consent"],
+  // /device is deliberately not gated: the CLI sends people to the platform first, which forwards them here once signed in.
+  // Without a session the page itself sends them back to the platform.
 };

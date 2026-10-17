@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
-  env: { NEXT_PUBLIC_AUTH_PROVIDERS: enabledProviders.join(",") },
+  env: { NEXT_PUBLIC_AUTH_PROVIDERS: enabledProviders.join(","), NEXT_PUBLIC_PLATFORM_URL: process.env.PLATFORM_URL ?? "" },
   // Each app is its own project. Without this, Turbopack infers the shared parent folder as the root and
   // reloads whenever a sibling app's dev server writes files.
   turbopack: {

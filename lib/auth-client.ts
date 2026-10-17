@@ -2,7 +2,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient, organizationClient } from "better-auth/client/plugins";
-import { oauthProviderClient } from "@better-auth/oauth-provider/client";
+import { oauthDeviceAuthorizationClient, oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 
 /**
@@ -11,5 +11,5 @@ import { passkeyClient } from "@better-auth/passkey/client";
  * which is how an in-progress authorization continues after the user signs in.
  */
 export const authClient = createAuthClient({
-  plugins: [oauthProviderClient(), emailOTPClient(), organizationClient(), passkeyClient()],
+  plugins: [oauthProviderClient(), oauthDeviceAuthorizationClient(), emailOTPClient(), organizationClient(), passkeyClient()],
 });

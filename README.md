@@ -15,10 +15,11 @@ People never come here directly. The platform starts a sign-in, the OAuth provid
 | Hosted pages | `/sign-in`, `/sign-up`, `/select-org`, `/consent` |
 | Invited people | A pending invitation skips `/select-org`; they accept it on the platform. With exactly one team, `/select-org` is skipped too |
 | Shared database | The platform runs its own Better Auth against this database for organizations and passkey management (see `../platform/README.md`). Sessions carry a `client` tag (`sso` here) |
-| First-party client | `platform`, registered by `pnpm db:seed`, skips the consent screen |
+| First-party clients | `platform` (confidential) and `tunnel-cli` (public, device flow), registered by `pnpm db:seed`; both skip the consent screen |
+| CLI login | `oauthDeviceAuthorization()`: the CLI asks for a code, people approve it at `/device` (reached through the platform), and the token is a JWT for the platform API resource (`PLATFORM_API_RESOURCE`) |
 | Direct-access gate | `proxy.ts` verifies the signed OAuth query with `verifyOAuthQueryParams` |
 
-Not built yet (in the spec): two-factor, device authorization for the CLI (`/device`), dynamic base URL. Passkeys are registered and managed on the platform account page and used for sign-in here, so `PASSKEY_RP_ID` must be the same in both apps.
+Not built yet (in the spec): two-factor, dynamic base URL. Passkeys are registered and managed on the platform account page and used for sign-in here, so `PASSKEY_RP_ID` must be the same in both apps.
 
 ## Running it locally
 

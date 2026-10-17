@@ -2,14 +2,19 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { emailOTP, jwt, organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
-import { oauthProvider } from "@better-auth/oauth-provider";
+import { after } from "next/server";
+import { oauthDeviceAuthorization, oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { and, eq, gt } from "drizzle-orm";
 import { db, schema } from "./db";
 import { sendOtpEmail } from "./email";
+import { redisRateLimit } from "./rate-limit";
 
 const baseURL = process.env.BETTER_AUTH_URL!;
 const platformURL = process.env.PLATFORM_URL!;
+
+/** The platform's API is the protected resource CLI access tokens are issued for. Setting it makes them JWTs the platform can verify. */
+export const platformApiResource = process.env.PLATFORM_API_RESOURCE ?? `${platformURL}/api`;
 
 /**
  * Passkeys are bound to a relying party id. The platform manages them (it is the only place people go), while sign-in
@@ -44,7 +49,8 @@ export const auth = betterAuth({
   // The OAuth provider serves the token endpoint at /oauth2/token. Better Auth's own /token is turned off.
   disabledPaths: ["/token"],
 
-  rateLimit: { enabled: true },
+  // In production (Vercel) the counters live in Redis so limits hold across instances.
+  rateLimit: { enabled: true, ...(process.env.REDIS_URL ? { customStorage: redisRateLimit } : {}) },
 
   socialProviders: {
     github: social(process.env.GITHUB_CLIENT_ID, process.env.GITHUB_CLIENT_SECRET),
@@ -99,15 +105,26 @@ export const auth = betterAuth({
         },
         consentReferenceId: async ({ user, session }) => (session.activeOrganizationId as string | null | undefined) ?? (await soleOrganization(user.id)),
       },
+      // A CLI waiting for approval polls the token endpoint every few seconds (RFC 8628), which the default of 20 a minute would trip.
+      rateLimit: { token: { window: 60, max: 60 } },
       cachedTrustedClients: trustedClients,
       scopes: ["openid", "profile", "email", "offline_access", "tunnel:connect", "tunnel:read", "tunnel:manage"],
+      resources: [{ identifier: platformApiResource, name: "Meshscale platform API", allowedScopes: ["tunnel:connect", "tunnel:read", "tunnel:manage"] }],
       // Namespaced claim carrying the active organization (auth spec 7).
       customAccessTokenClaims: ({ referenceId }) => ({ "https://meshscale.cloud/org": referenceId }),
     }),
+    // CLI login (RFC 8628). People start at the platform's /device page, which sends them through single sign-on and on to this server's /device page.
+    oauthDeviceAuthorization({ verificationUri: `${platformURL}/device`, expiresIn: "10m", interval: "5s", userCodeLength: 8 }),
     emailOTP({
-      // Not awaited on purpose: awaiting the send leaks timing information (Better Auth docs).
+      // Not awaited, because awaiting the send leaks timing information (Better Auth docs). On serverless the function
+      // is frozen once the response is sent, which would cut the send off, so `after` keeps it alive until it finishes.
       sendVerificationOTP: async ({ email, otp, type }) => {
-        void sendOtpEmail({ to: email, otp, type });
+        const send = sendOtpEmail({ to: email, otp, type });
+        try {
+          after(send);
+        } catch {
+          void send; // outside a request (scripts): nothing to keep alive
+        }
       },
       otpLength: 6,
       expiresIn: 300,

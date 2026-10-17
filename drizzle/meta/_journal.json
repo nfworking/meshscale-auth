@@ -15,6 +15,13 @@
       "when": 1791981767174,
       "tag": "0001_lazy_sabra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792199429570,
+      "tag": "0002_amusing_toad",
+      "breakpoints": true
     }
   ]
 }
