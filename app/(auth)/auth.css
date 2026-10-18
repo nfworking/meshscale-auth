@@ -64,30 +64,30 @@
 .au-legal a:hover { color: var(--foreground); }
 
 /* Art side: a dotted grid, always dark, like the hero on the marketing site */
-.au-art { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; gap: 40px; min-width: 0; padding: 28px 56px 48px; background: var(--ink); color: #eeeae5; overflow: hidden; border-left: 1px solid transparent; }
+.au-art { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; gap: 40px; min-width: 0; padding: 28px 56px 48px; background: var(--ink); color: #ececec; overflow: hidden; border-left: 1px solid transparent; }
 [data-theme="dark"] .au-art { border-left-color: var(--border); }
 .au-art-grid { position: absolute; inset: 0; z-index: -1; background-image: radial-gradient(#ffffff80 1.5px, transparent 1.8px), radial-gradient(#ffffff38 1px, transparent 1.3px); background-size: 96px 96px, 24px 24px; background-position: 12px 12px, 12px 12px; -webkit-mask-image: radial-gradient(ellipse 100% 90% at 40% 45%, #000 35%, transparent 95%); mask-image: radial-gradient(ellipse 100% 90% at 40% 45%, #000 35%, transparent 95%); }
 .au-art::after { content: ""; position: absolute; inset: 0; z-index: -2; background: radial-gradient(ellipse 55% 38% at 82% 108%, #ff74424d, transparent 70%), radial-gradient(ellipse 40% 30% at 12% -5%, #ff744214, transparent 70%); }
 .au-art-top { display: flex; justify-content: flex-end; }
-.au-status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid #ffffff1f; border-radius: 99px; background: #ffffff08; color: #b9b3ac; font-size: 12px; }
+.au-status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid #ffffff1f; border-radius: 99px; background: #ffffff08; color: #b4b4b4; font-size: 12px; }
 .au-status i { width: 6px; height: 6px; border-radius: 50%; background: #2fb36d; box-shadow: 0 0 0 3px #2fb36d2e; }
 .au-art-copy { max-width: 440px; }
 .au-eyebrow { display: flex; align-items: center; gap: 9px; color: var(--accent); font: 500 11px var(--font-mono); letter-spacing: 1.6px; text-transform: uppercase; }
 .au-eyebrow span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .au-art-copy h2 { margin-top: 18px; color: #fff; font-size: clamp(30px, 3.2vw, 42px); line-height: 1.06; font-weight: 500; letter-spacing: -.045em; }
-.au-art-lead { margin-top: 16px; color: #b9b3ac; font-size: 16px; line-height: 1.6; }
+.au-art-lead { margin-top: 16px; color: #b4b4b4; font-size: 16px; line-height: 1.6; }
 .au-art-copy ul { display: grid; gap: 18px; margin: 32px 0 0; padding: 0; list-style: none; }
 .au-art-copy li { display: flex; gap: 14px; align-items: flex-start; }
 .au-art-icon { display: grid; place-items: center; flex-shrink: 0; width: 34px; height: 34px; border: 1px solid #ffffff24; border-radius: 10px; background: #ffffff0a; color: var(--accent); }
 .au-art-copy li strong { display: block; color: #fff; font-size: 14px; font-weight: 500; }
-.au-art-copy li small { display: block; margin-top: 2px; color: #8f8982; font-size: 13px; line-height: 1.5; }
+.au-art-copy li small { display: block; margin-top: 2px; color: #8c8c8c; font-size: 13px; line-height: 1.5; }
 .au-art-terminal { width: min(100%, 360px); border: 1px solid #ffffff1f; border-radius: 12px; background: #0b0a09cc; backdrop-filter: blur(6px); overflow: hidden; }
 .au-art-terminal-head { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #ffffff14; }
 .au-art-terminal-head span { width: 8px; height: 8px; border-radius: 50%; background: #ffffff24; }
-.au-art-terminal-head em { margin-left: 8px; color: #6f6a64; font: normal 11px var(--font-mono); }
-.au-art-terminal pre { margin: 0; padding: 14px 16px; color: #d8d2cb; font: 12.5px/1.9 var(--font-mono); white-space: pre-wrap; }
+.au-art-terminal-head em { margin-left: 8px; color: #6e6e6e; font: normal 11px var(--font-mono); }
+.au-art-terminal pre { margin: 0; padding: 14px 16px; color: #d4d4d4; font: 12.5px/1.9 var(--font-mono); white-space: pre-wrap; }
 .au-art-terminal b { color: var(--accent); font-weight: 600; letter-spacing: 1.5px; }
-.au-dim { color: #78736c; }
+.au-dim { color: #767676; }
 
 @media (max-width: 1100px) { .au-form-side { padding: 24px 32px; } .au-art { padding: 24px 36px 40px; } }
 @media (max-width: 900px) {
