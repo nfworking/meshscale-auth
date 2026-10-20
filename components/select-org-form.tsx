@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Building2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { Pending, Spinner } from "./spinner";
 
 type Org = { id: string; name: string; slug: string };
 
@@ -52,7 +53,7 @@ export function SelectOrgForm() {
     await proceed();
   }
 
-  if (!orgs) return <div className="au-form"><p className="au-sub">Loading your workspaces…</p></div>;
+  if (!orgs) return <div className="au-form au-loading"><Spinner size={24} label="Loading your workspaces" /></div>;
 
   return (
     <div className="au-form">
@@ -68,7 +69,7 @@ export function SelectOrgForm() {
               <button type="button" disabled={!!busy} onClick={() => void choose(org.id)}>
                 <span className="au-org-icon"><Building2 size={16} strokeWidth={1.6} /></span>
                 <span><strong>{org.name}</strong><small>{org.slug}</small></span>
-                {busy === org.id ? <em>Opening…</em> : <ArrowRight size={15} />}
+                {busy === org.id ? <Spinner size={15} label="Opening" /> : <ArrowRight size={15} />}
               </button>
             </li>
           ))}
@@ -82,7 +83,7 @@ export function SelectOrgForm() {
           <label htmlFor="org-name">Workspace name</label>
           <input id="org-name" name="name" type="text" placeholder="Acme Inc." value={name} onChange={event => setName(event.target.value)} required maxLength={60} />
         </div>
-        <button type="submit" className="au-btn au-btn-primary" disabled={!!busy}>{busy === "create" ? "Creating…" : <>Create workspace <ArrowRight size={15} /></>}</button>
+        <button type="submit" className="au-btn au-btn-primary" disabled={!!busy}><Pending busy={busy === "create"}>Create workspace <ArrowRight size={15} /></Pending></button>
       </form>
 
       {error && <p className="au-error" role="alert">{error}</p>}

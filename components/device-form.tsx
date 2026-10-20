@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Terminal } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { Pending, Spinner } from "./spinner";
 
 const scopeText: Record<string, string> = {
   openid: "Verify your identity",
@@ -69,7 +70,7 @@ export function DeviceForm() {
     setState(approve ? "approved" : "denied");
   }
 
-  if (state === "loading") return <div className="au-form"><p className="au-sub">Checking the code…</p></div>;
+  if (state === "loading") return <div className="au-form au-loading"><Spinner size={24} label="Checking the code" /></div>;
 
   if (state === "invalid") {
     return (
@@ -105,8 +106,8 @@ export function DeviceForm() {
         ))}
       </ul>
       <div className="au-actions">
-        <button type="button" className="au-btn au-btn-outline" disabled={!!busy} onClick={() => void decide(false)}>{busy === "deny" ? "Denying…" : "Deny"}</button>
-        <button type="button" className="au-btn au-btn-primary" disabled={!!busy} onClick={() => void decide(true)}>{busy === "approve" ? "Approving…" : "Approve"}</button>
+        <button type="button" className="au-btn au-btn-outline" disabled={!!busy} onClick={() => void decide(false)}><Pending busy={busy === "deny"}>Deny</Pending></button>
+        <button type="button" className="au-btn au-btn-primary" disabled={!!busy} onClick={() => void decide(true)}><Pending busy={busy === "approve"}>Approve</Pending></button>
       </div>
       {error && <p className="au-error" role="alert">{error}</p>}
     </div>

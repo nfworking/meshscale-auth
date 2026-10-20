@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { OtpInput } from "./otp-input";
+import { Pending } from "./spinner";
 
 const RESEND_SECONDS = 30;
 
@@ -26,7 +27,11 @@ export function VerifyStep({ email, submitLabel, busy, error, onBack, onVerify, 
   }, [wait]);
 
   // A wrong code clears the boxes so the next attempt starts fresh.
-  useEffect(() => { if (error) setCode(""); }, [error]);
+  const [seenError, setSeenError] = useState(error);
+  if (error !== seenError) {
+    setSeenError(error);
+    if (error) setCode("");
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -40,7 +45,7 @@ export function VerifyStep({ email, submitLabel, busy, error, onBack, onVerify, 
   }
 
   return (
-    <form onSubmit={submit} className="au-form" noValidate>
+    <form onSubmit={submit} className="au-form au-step" noValidate>
       <button type="button" className="au-back" onClick={onBack}><ArrowLeft size={14} />Back</button>
       <div className="au-verify-icon"><MailCheck size={22} strokeWidth={1.6} /></div>
       <div>
@@ -49,7 +54,7 @@ export function VerifyStep({ email, submitLabel, busy, error, onBack, onVerify, 
       </div>
       <OtpInput value={code} onChange={setCode} disabled={busy} />
       {error && <p className="au-error" role="alert">{error}</p>}
-      <button type="submit" className="au-btn au-btn-primary" disabled={code.length < 6 || busy}>{busy ? "Verifying…" : submitLabel}</button>
+      <button type="submit" className="au-btn au-btn-primary" disabled={code.length < 6 || busy}><Pending busy={busy}>{submitLabel}</Pending></button>
       <p className="au-resend">
         Didn&apos;t get it?{" "}
         {wait > 0 ? <span>Resend in {wait}s</span> : <button type="button" onClick={resend}>Resend code</button>}

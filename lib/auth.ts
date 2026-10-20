@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { emailOTP, jwt, organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -7,8 +8,10 @@ import { oauthDeviceAuthorization, oauthProvider } from "@better-auth/oauth-prov
 import { passkey } from "@better-auth/passkey";
 import { and, eq, gt } from "drizzle-orm";
 import { db, schema } from "./db";
+import { recordAccountEvent } from "./account-events";
 import { sendOtpEmail } from "./email";
-import { redisRateLimit } from "./rate-limit";
+import { MAX_PASSWORD, MIN_PASSWORD, passwordProblem } from "./password";
+import { bump, clearAttempts, redisRateLimit } from "./rate-limit";
 
 const baseURL = process.env.BETTER_AUTH_URL!;
 const platformURL = process.env.PLATFORM_URL!;
@@ -47,10 +50,89 @@ export const auth = betterAuth({
   advanced: { cookiePrefix: "meshscale-auth" },
 
   // The OAuth provider serves the token endpoint at /oauth2/token. Better Auth's own /token is turned off.
-  disabledPaths: ["/token"],
+  // /sign-up/email is closed to the public: an account with a password is only created by our own sign-up step, after the
+  // email address has been proven with a code (lib/signup-action.ts). Otherwise anyone could register somebody else's address
+  // with a password of their own and wait for the owner to arrive.
+  disabledPaths: ["/token", "/sign-up/email"],
+
+  // Email addresses are unique. Better Auth stores them lower-case and the database enforces it (also case-insensitively),
+  // so one address is one account: signing up with an address that already has an account is refused, not merged.
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: MIN_PASSWORD,
+    maxPasswordLength: MAX_PASSWORD,
+    requireEmailVerification: true,
+    autoSignIn: false,
+    revokeSessionsOnPasswordReset: true,
+  },
+
+  hooks: {
+    before: createAuthMiddleware(async ctx => {
+      // Starting a sign-up with an address that already has an account is an error, not a silent sign-in.
+      if (ctx.path === "/email-otp/send-verification-otp" && ctx.headers?.get("x-meshscale-signup") === "1") {
+        const email = String((ctx.body as { email?: string } | undefined)?.email ?? "").trim().toLowerCase();
+        if (email && (await ctx.context.internalAdapter.findUserByEmail(email))) {
+          throw new APIError("BAD_REQUEST", { message: "An account with this email already exists. Sign in instead.", code: "EMAIL_ALREADY_REGISTERED" });
+        }
+      }
+      // Choosing a new password through the email code gets the same checks as signing up.
+      if (ctx.path === "/email-otp/reset-password") {
+        const problem = await passwordProblem(String((ctx.body as { password?: string } | undefined)?.password ?? ""));
+        if (problem) throw new APIError("BAD_REQUEST", { message: problem, code: "WEAK_PASSWORD" });
+      }
+      // Failed password attempts are counted per email address across every IP, so a botnet cannot go around the per-IP limit.
+      if (ctx.path === "/sign-in/email") {
+        const email = String((ctx.body as { email?: string } | undefined)?.email ?? "").trim().toLowerCase();
+        if (email && (await bump(`pw:${email}`, 15 * 60)) > 10) {
+          throw new APIError("TOO_MANY_REQUESTS", { message: "Too many sign-in attempts for this account. Wait 15 minutes, or use an email code instead." });
+        }
+      }
+    }),
+    after: createAuthMiddleware(async ctx => {
+      const body = (ctx.body ?? {}) as { email?: string };
+      const email = String(body.email ?? "").trim().toLowerCase();
+      // Our own server-side calls (the sign-up step) set this header; their temporary session is not a real sign-in.
+      const internal = ctx.headers?.get("x-meshscale-internal") === "1";
+
+      if (ctx.path === "/sign-in/email" && ctx.context.newSession && email) await clearAttempts(`pw:${email}`);
+
+      // A sign-in, and how it was done.
+      const session = ctx.context.newSession;
+      if (session && !internal) {
+        const method =
+          ctx.path === "/sign-in/email" ? "password" :
+          ctx.path === "/sign-in/email-otp" ? "email_code" :
+          ctx.path === "/passkey/verify-authentication" ? "passkey" :
+          ctx.path.startsWith("/callback/") ? `social:${ctx.path.split("/")[2]}` : null;
+        if (method) await recordAccountEvent({ userId: session.user.id, action: "sign_in", details: { method }, headers: ctx.headers });
+      }
+
+      // A wrong password for a real account. Recorded at most once every five minutes, so nobody can flood someone's activity.
+      if (ctx.path === "/sign-in/email" && email && isAPIError(ctx.context.returned)) {
+        const found = await ctx.context.internalAdapter.findUserByEmail(email);
+        if (found && (await bump(`failevt:${found.user.id}`, 300)) === 1) {
+          await recordAccountEvent({ userId: found.user.id, action: "sign_in_failed", details: { method: "password" }, headers: ctx.headers });
+        }
+      }
+
+      // A password chosen with the emailed code.
+      if (ctx.path === "/email-otp/reset-password" && email && !isAPIError(ctx.context.returned)) {
+        const found = await ctx.context.internalAdapter.findUserByEmail(email);
+        if (found) await recordAccountEvent({ userId: found.user.id, action: "password_changed", details: { via: "email_code" }, headers: ctx.headers });
+      }
+    }),
+  },
 
   // In production (Vercel) the counters live in Redis so limits hold across instances.
-  rateLimit: { enabled: true, ...(process.env.REDIS_URL ? { customStorage: redisRateLimit } : {}) },
+  rateLimit: {
+    enabled: true,
+    ...(process.env.REDIS_URL ? { customStorage: redisRateLimit } : {}),
+    customRules: {
+      "/sign-in/email": { window: 60, max: 8 },
+      "/email-otp/request-password-reset": { window: 60, max: 3 },
+      "/email-otp/reset-password": { window: 60, max: 5 },
+    },
+  },
 
   socialProviders: {
     github: social(process.env.GITHUB_CLIENT_ID, process.env.GITHUB_CLIENT_SECRET),
@@ -62,6 +144,13 @@ export const auth = betterAuth({
   session: { additionalFields: { client: { type: "string", required: false, input: false } } },
 
   databaseHooks: {
+    user: {
+      create: {
+        after: async (created, context) => {
+          await recordAccountEvent({ userId: created.id, action: "account_created", headers: context?.headers ?? null });
+        },
+      },
+    },
     session: {
       create: {
         // Users with exactly one organization land in it automatically. Everyone else picks one at /select-org.

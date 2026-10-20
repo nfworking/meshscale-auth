@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, ShieldCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { ClientMark } from "./client-mark";
+import { Pending, Spinner } from "./spinner";
 
 const scopeText: Record<string, string> = {
   openid: "Verify your identity",
@@ -16,7 +18,7 @@ const scopeText: Record<string, string> = {
 
 /** Consent screen for third-party clients. First-party clients such as the platform skip it entirely. */
 export function ConsentForm() {
-  const [client, setClient] = useState<{ name: string; scopes: string[] } | null>(null);
+  const [client, setClient] = useState<{ name: string; scopes: string[]; logo: string | null } | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
@@ -25,7 +27,8 @@ export function ConsentForm() {
     const clientId = params.get("client_id") ?? "";
     const scopes = (params.get("scope") ?? "").split(" ").filter(Boolean);
     authClient.oauth2.publicClient({ query: { client_id: clientId } }).then(({ data }) => {
-      setClient({ name: (data as { client_name?: string } | null)?.client_name ?? "An application", scopes });
+      const found = data as { client_name?: string; logo_uri?: string; icon?: string } | null;
+      setClient({ name: found?.client_name ?? "An application", scopes, logo: found?.logo_uri ?? found?.icon ?? null });
     });
   }, []);
 
@@ -38,11 +41,11 @@ export function ConsentForm() {
     if (url) window.location.assign(url);
   }
 
-  if (!client) return <div className="au-form"><p className="au-sub">Loading…</p></div>;
+  if (!client) return <div className="au-form au-loading"><Spinner size={24} label="Loading" /></div>;
 
   return (
     <div className="au-form">
-      <div className="au-verify-icon"><ShieldCheck size={22} strokeWidth={1.6} /></div>
+      <ClientMark name={client.name} logo={client.logo} icon={<ShieldCheck size={22} strokeWidth={1.6} />} />
       <div>
         <h1>Authorize {client.name}</h1>
         <p className="au-sub"><strong>{client.name}</strong> is asking to use your Meshscale account. It will be able to:</p>
@@ -53,8 +56,8 @@ export function ConsentForm() {
         ))}
       </ul>
       <div className="au-actions">
-        <button type="button" className="au-btn au-btn-outline" disabled={!!busy} onClick={() => void decide(false)}>{busy === "deny" ? "Denying…" : "Deny"}</button>
-        <button type="button" className="au-btn au-btn-primary" disabled={!!busy} onClick={() => void decide(true)}>{busy === "allow" ? "Allowing…" : "Allow"}</button>
+        <button type="button" className="au-btn au-btn-outline" disabled={!!busy} onClick={() => void decide(false)}><Pending busy={busy === "deny"}>Deny</Pending></button>
+        <button type="button" className="au-btn au-btn-primary" disabled={!!busy} onClick={() => void decide(true)}><Pending busy={busy === "allow"}>Allow</Pending></button>
       </div>
       {error && <p className="au-error" role="alert">{error}</p>}
     </div>
